@@ -1,5 +1,7 @@
 package java.util;
 
+import com.sun.xml.internal.bind.v2.TODO;
+
 import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.Serializable;
@@ -14,17 +16,51 @@ public class HashMap<K,V> extends AbstractMap<K,V> implements Map<K,V>, Cloneabl
     private static final long serialVersionUID = 362498820763181265L;
 
     // 初始化容量
-    static final int DEFAULT_INITIAL_CAPACITY = 1 << 4; // aka 16
+    static final int DEFAULT_INITIAL_CAPACITY = 1 << 4;
     // 最大容量
     static final int MAXIMUM_CAPACITY = 1 << 30;
-    // 负载因子
+    // 负载因子（时间和空间折中）
     static final float DEFAULT_LOAD_FACTOR = 0.75f;
-    // 树化阈值
+    // 树化阈值（概率统计学，泊松分布）
     static final int TREEIFY_THRESHOLD = 8;
     // 退树化阈值
     static final int UNTREEIFY_THRESHOLD = 6;
     static final int MIN_TREEIFY_CAPACITY = 64;
 
+    /**----------------------------构造器-----------------------------**/
+    public HashMap(int initialCapacity, float loadFactor) {
+        if (initialCapacity < 0)
+            throw new IllegalArgumentException("Illegal initial capacity: " + initialCapacity);
+        if (initialCapacity > MAXIMUM_CAPACITY)
+            initialCapacity = MAXIMUM_CAPACITY;
+        if (loadFactor <= 0 || Float.isNaN(loadFactor))
+            throw new IllegalArgumentException("Illegal load factor: " + loadFactor);
+        this.loadFactor = loadFactor;
+        this.threshold = tableSizeFor(initialCapacity);
+    }
+    public HashMap(int initialCapacity) {
+        this(initialCapacity, DEFAULT_LOAD_FACTOR);
+    }
+
+    public HashMap() {
+        this.loadFactor = DEFAULT_LOAD_FACTOR;
+    }
+
+    public HashMap(Map<? extends K, ? extends V> m) {
+        this.loadFactor = DEFAULT_LOAD_FACTOR;
+        putMapEntries(m, false);
+    }
+
+
+    /**----------------------------重要属性-----------------------------**/
+    transient Node<K,V>[] table;
+    transient Set<Map.Entry<K,V>> entrySet;
+    transient int size;        // 元素个数
+    transient int modCount;    // hash表结构修改次数
+    int threshold;             // 阈值
+    final float loadFactor;    // 负载因子
+
+    /**----------------------------重要内部类-----------------------------**/
     static class Node<K,V> implements Map.Entry<K,V> {
         final int hash;
         final K key;
@@ -41,20 +77,14 @@ public class HashMap<K,V> extends AbstractMap<K,V> implements Map<K,V>, Cloneabl
         public final K getKey()        { return key; }
         public final V getValue()      { return value; }
         public final String toString() { return key + "=" + value; }
-
-        // *****lxh
         public final int hashCode() {
             return Objects.hashCode(key) ^ Objects.hashCode(value);
         }
-
         public final V setValue(V newValue) {
             V oldValue = value;
             value = newValue;
             return oldValue;
         }
-
-
-        // *****lxh：key，value都比较
         public final boolean equals(Object o) {
             if (o == this)
                 return true;
@@ -69,11 +99,237 @@ public class HashMap<K,V> extends AbstractMap<K,V> implements Map<K,V>, Cloneabl
     }
 
 
-    // *****lxh：计算hash
+    /**----------------------------重要方法-----------------------------**/
+    // TODO: 2020/4/28 1.计算key的hash值（key为null时hashcode=0）
     static final int hash(Object key) {
         int h;
         return (key == null) ? 0 : (h = key.hashCode()) ^ (h >>> 16);
     }
+
+    // TODO: 2020/4/28 2.计算表初始化大小
+    static final int tableSizeFor(int cap) {
+        int n = cap - 1;
+        n |= n >>> 1;
+        n |= n >>> 2;
+        n |= n >>> 4;
+        n |= n >>> 8;
+        n |= n >>> 16;
+        return (n < 0) ? 1 : (n >= MAXIMUM_CAPACITY) ? MAXIMUM_CAPACITY : n + 1;
+    }
+
+
+    // TODO: 2020/4/28 3.put新数据
+    public V put(K key, V value) {
+        return putVal(hash(key), key, value, false, true);
+    }
+
+    /**
+     * @param onlyIfAbsent false替换旧值
+     * @param evict 逐出
+     * @return
+     */
+    final V putVal(int hash, K key, V value, boolean onlyIfAbsent, boolean evict) {
+        Node<K,V>[] tab; Node<K,V> p; int n, i;
+        // 1.数组为空
+        if ((tab = table) == null || (n = tab.length) == 0)
+            n = (tab = resize()).length;
+        // 2.数组中没存放节点
+        if ((p = tab[i = (n - 1) & hash]) == null)
+            tab[i] = newNode(hash, key, value, null);
+        // 3.插入位置有内容
+        else {
+            Node<K,V> e; K k;
+            // 3.1 数组中key一样进行替换
+            if (p.hash == hash && ((k = p.key) == key || (key != null && key.equals(k))))
+                e = p;
+            // 3.2 红黑树
+            else if (p instanceof TreeNode)
+                e = ((TreeNode<K,V>)p).putTreeVal(this, tab, hash, key, value);
+            // 3.3 链表
+            else {
+                for (int binCount = 0; ; ++binCount) {
+                    if ((e = p.next) == null) {
+                        // 尾节点插入值
+                        p.next = newNode(hash, key, value, null);
+                        if (binCount >= TREEIFY_THRESHOLD - 1) // -1 for 1st（binCount >= 7 ）
+                            treeifyBin(tab, hash);
+                        break;
+                    }
+                    if (e.hash == hash && ((k = e.key) == key || (key != null && key.equals(k))))
+                        break;
+                    p = e;
+                }
+            }
+            // 4 桶中有相同key,value进行替换
+            if (e != null) {
+                V oldValue = e.value;
+                if (!onlyIfAbsent || oldValue == null)
+                    e.value = value;
+                afterNodeAccess(e);
+                return oldValue;
+            }
+        }
+        ++modCount;
+        // TODO: 2020/4/28 扩容
+        if (++size > threshold)
+            resize();
+        afterNodeInsertion(evict);
+        return null;
+    }
+
+
+    // TODO: 2020/4/28 4.get获取
+    public V get(Object key) {
+        Node<K,V> e;
+        return (e = getNode(hash(key), key)) == null ? null : e.value;
+    }
+
+    final Node<K,V> getNode(int hash, Object key) {
+        Node<K,V>[] tab; Node<K,V> first, e; int n; K k;
+        if ((tab = table) != null && (n = tab.length) > 0 &&
+                (first = tab[(n - 1) & hash]) != null) {
+            if (first.hash == hash && // always check first node
+                    ((k = first.key) == key || (key != null && key.equals(k))))
+                return first;
+            if ((e = first.next) != null) {
+                if (first instanceof TreeNode)
+                    return ((TreeNode<K,V>)first).getTreeNode(hash, key);
+                do {
+                    if (e.hash == hash &&
+                            ((k = e.key) == key || (key != null && key.equals(k))))
+                        return e;
+                } while ((e = e.next) != null);
+            }
+        }
+        return null;
+    }
+
+
+
+    // TODO: 2020/4/28 5.扩容（2个地方调用：1、最后扩容  2、转红黑树时）
+    final Node<K,V>[] resize() {
+        Node<K,V>[] oldTab = table;
+        // 长度
+        int oldCap = (oldTab == null) ? 0 : oldTab.length;
+        // 扩容临界值
+        int oldThr = threshold;
+        int newCap, newThr = 0;
+        // 1. 扩容2倍
+        if (oldCap > 0) {
+            if (oldCap >= MAXIMUM_CAPACITY) {
+                threshold = Integer.MAX_VALUE;
+                return oldTab;
+            }
+            // 扩容操作，2倍（cap,thr）
+            else if ((newCap = oldCap << 1) < MAXIMUM_CAPACITY &&
+                    oldCap >= DEFAULT_INITIAL_CAPACITY)
+                newThr = oldThr << 1;
+        }
+        else if (oldThr > 0)
+            newCap = oldThr;
+        else {
+            newCap = DEFAULT_INITIAL_CAPACITY;
+            newThr = (int)(DEFAULT_LOAD_FACTOR * DEFAULT_INITIAL_CAPACITY);
+        }
+
+
+        if (newThr == 0) {
+            float ft = (float)newCap * loadFactor;
+            newThr = (newCap < MAXIMUM_CAPACITY && ft < (float)MAXIMUM_CAPACITY ?
+                    (int)ft : Integer.MAX_VALUE);
+        }
+        threshold = newThr;
+        Node<K,V>[] newTab = (Node<K,V>[])new Node[newCap];
+        table = newTab;
+        // 2 调整数组后，调整链表和树指向
+        if (oldTab != null) {
+            for (int j = 0; j < oldCap; ++j) {
+                Node<K,V> e;
+                if ((e = oldTab[j]) != null) {
+                    oldTab[j] = null;
+                    // 数组
+                    if (e.next == null)
+                        newTab[e.hash & (newCap - 1)] = e;
+                        // 红黑树
+                    else if (e instanceof TreeNode)
+                        ((TreeNode<K,V>)e).split(this, newTab, j, oldCap);
+                        // 链表
+                    else {
+                        // TODO: 2020/4/28 4个指针，实现扩容  (迁移时不需要rehash,保证链表顺序)
+                        Node<K,V> loHead = null, loTail = null;
+                        Node<K,V> hiHead = null, hiTail = null;
+                        Node<K,V> next;
+                        do {
+                            next = e.next;
+                            if ((e.hash & oldCap) == 0) {
+                                if (loTail == null)
+                                    loHead = e;
+                                else
+                                    loTail.next = e;
+                                loTail = e;
+                            }
+                            else {
+                                if (hiTail == null)
+                                    hiHead = e;
+                                else
+                                    hiTail.next = e;
+                                hiTail = e;
+                            }
+                        } while ((e = next) != null);
+
+                        // 如果是0,扩容后还是原来位置
+                        // 如果不是0,扩容后为原位置 + oldCap
+                        if (loTail != null) {
+                            loTail.next = null;
+                            newTab[j] = loHead;
+                        }
+                        if (hiTail != null) {
+                            hiTail.next = null;
+                            newTab[j + oldCap] = hiHead;
+                        }
+                    }
+                }
+            }
+        }
+        return newTab;
+    }
+
+    // TODO: 2020/4/28 6.树化
+    final void treeifyBin(Node<K,V>[] tab, int hash) {
+        int n, index; Node<K,V> e;
+        // TODO: 2020/4/25  扩容，如果总个数小于64不会树化，继续扩容
+        if (tab == null || (n = tab.length) < MIN_TREEIFY_CAPACITY)
+            resize();
+            // 1.链表的头
+        else if ((e = tab[index = (n - 1) & hash]) != null) {
+            TreeNode<K,V> hd = null, tl = null;
+            do {
+                // 创建红黑树根节点
+                TreeNode<K,V> p = replacementTreeNode(e, null);
+                if (tl == null)
+                    hd = p;
+                else {
+                    p.prev = tl;
+                    tl.next = p;
+                }
+                tl = p;
+            } while ((e = e.next) != null);
+            if ((tab[index] = hd) != null);
+            // 转换红黑树(真正的地方)
+            hd.treeify(tab);
+        }
+    }
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -100,50 +356,6 @@ public class HashMap<K,V> extends AbstractMap<K,V> implements Map<K,V>, Cloneabl
         return (x == null || x.getClass() != kc ? 0 :
                 ((Comparable)k).compareTo(x));
     }
-
-    // *****lxh：计算表初始化大小
-    static final int tableSizeFor(int cap) {
-        int n = cap - 1;
-        n |= n >>> 1;
-        n |= n >>> 2;
-        n |= n >>> 4;
-        n |= n >>> 8;
-        n |= n >>> 16;
-        return (n < 0) ? 1 : (n >= MAXIMUM_CAPACITY) ? MAXIMUM_CAPACITY : n + 1;
-    }
-
-    /* ---------------- Fields -------------- */
-    transient Node<K,V>[] table;
-    transient Set<Map.Entry<K,V>> entrySet;
-    transient int size;
-    transient int modCount; //hash表结构修改次数
-    int threshold; // 阈值
-    final float loadFactor; //负载因子
-
-    /* ---------------- Public operations -------------- */
-    public HashMap(int initialCapacity, float loadFactor) {
-        if (initialCapacity < 0)
-            throw new IllegalArgumentException("Illegal initial capacity: " +
-                                               initialCapacity);
-        if (initialCapacity > MAXIMUM_CAPACITY)
-            initialCapacity = MAXIMUM_CAPACITY;
-        if (loadFactor <= 0 || Float.isNaN(loadFactor))
-            throw new IllegalArgumentException("Illegal load factor: " +
-                                               loadFactor);
-        this.loadFactor = loadFactor;
-        this.threshold = tableSizeFor(initialCapacity);
-    }
-    public HashMap(int initialCapacity) {
-        this(initialCapacity, DEFAULT_LOAD_FACTOR);
-    }
-    public HashMap() {
-        this.loadFactor = DEFAULT_LOAD_FACTOR;
-    }
-    public HashMap(Map<? extends K, ? extends V> m) {
-        this.loadFactor = DEFAULT_LOAD_FACTOR;
-        putMapEntries(m, false);
-    }
-
 
     final void putMapEntries(Map<? extends K, ? extends V> m, boolean evict) {
         int s = m.size();
@@ -173,221 +385,9 @@ public class HashMap<K,V> extends AbstractMap<K,V> implements Map<K,V>, Cloneabl
         return size == 0;
     }
 
-
-    // *****lxh
-    public V get(Object key) {
-        Node<K,V> e;
-        return (e = getNode(hash(key), key)) == null ? null : e.value;
-    }
-
-    final Node<K,V> getNode(int hash, Object key) {
-        Node<K,V>[] tab; Node<K,V> first, e; int n; K k;
-        if ((tab = table) != null && (n = tab.length) > 0 &&
-            (first = tab[(n - 1) & hash]) != null) {
-            if (first.hash == hash && // always check first node
-                ((k = first.key) == key || (key != null && key.equals(k))))
-                return first;
-            if ((e = first.next) != null) {
-                if (first instanceof TreeNode)
-                    return ((TreeNode<K,V>)first).getTreeNode(hash, key);
-                do {
-                    if (e.hash == hash &&
-                        ((k = e.key) == key || (key != null && key.equals(k))))
-                        return e;
-                } while ((e = e.next) != null);
-            }
-        }
-        return null;
-    }
-
-
     public boolean containsKey(Object key) {
         return getNode(hash(key), key) != null;
     }
-
-    public V put(K key, V value) {
-        return putVal(hash(key), key, value, false, true);
-    }
-
-    /**
-     *
-     * @param hash
-     * @param key
-     * @param value
-     * @param onlyIfAbsent false替换旧值
-     * @param evict
-     * @return
-     */
-    final V putVal(int hash, K key, V value, boolean onlyIfAbsent, boolean evict) {
-        Node<K,V>[] tab; Node<K,V> p; int n, i;
-        // 1.数组为空
-        if ((tab = table) == null || (n = tab.length) == 0)
-            n = (tab = resize()).length;
-        // 2.数组中没存放节点
-        if ((p = tab[i = (n - 1) & hash]) == null)
-            tab[i] = newNode(hash, key, value, null);
-        // 3.插入位置有内容
-        else {
-            Node<K,V> e; K k;
-            // 3.1 数组中key一样进行替换
-            if (p.hash == hash && ((k = p.key) == key || (key != null && key.equals(k))))
-                e = p;
-            // 3.2 红黑树
-            else if (p instanceof TreeNode)
-                e = ((TreeNode<K,V>)p).putTreeVal(this, tab, hash, key, value);
-            // 3.3 链表
-            else {
-                for (int binCount = 0; ; ++binCount) {
-                    if ((e = p.next) == null) {
-                        // 尾节点插入值
-                        p.next = newNode(hash, key, value, null);
-                        if (binCount >= TREEIFY_THRESHOLD - 1) // -1 for 1st
-                            treeifyBin(tab, hash);
-                        break;
-                    }
-                    if (e.hash == hash &&
-                        ((k = e.key) == key || (key != null && key.equals(k))))
-                        break;
-                    p = e;
-                }
-            }
-            // 4 桶中有相同key,value进行替换
-            if (e != null) {
-                V oldValue = e.value;
-                if (!onlyIfAbsent || oldValue == null)
-                    e.value = value;
-                afterNodeAccess(e);
-                return oldValue;
-            }
-        }
-        ++modCount;
-        if (++size > threshold)
-            resize();
-        afterNodeInsertion(evict);
-        return null;
-    }
-
-
-    /**
-     * 扩容
-     * @return
-     */
-    final Node<K,V>[] resize() {
-        Node<K,V>[] oldTab = table;
-        // 长度
-        int oldCap = (oldTab == null) ? 0 : oldTab.length;
-        // 扩容临界值
-        int oldThr = threshold;
-        int newCap, newThr = 0;
-        // 1. 扩容2倍
-        if (oldCap > 0) {
-            if (oldCap >= MAXIMUM_CAPACITY) {
-                threshold = Integer.MAX_VALUE;
-                return oldTab;
-            }
-            // 扩容操作，2倍（cap,thr）
-            else if ((newCap = oldCap << 1) < MAXIMUM_CAPACITY &&
-                     oldCap >= DEFAULT_INITIAL_CAPACITY)
-                newThr = oldThr << 1;
-        }
-        else if (oldThr > 0)
-            newCap = oldThr;
-        else {
-            newCap = DEFAULT_INITIAL_CAPACITY;
-            newThr = (int)(DEFAULT_LOAD_FACTOR * DEFAULT_INITIAL_CAPACITY);
-        }
-
-
-        if (newThr == 0) {
-            float ft = (float)newCap * loadFactor;
-            newThr = (newCap < MAXIMUM_CAPACITY && ft < (float)MAXIMUM_CAPACITY ?
-                      (int)ft : Integer.MAX_VALUE);
-        }
-        threshold = newThr;
-        Node<K,V>[] newTab = (Node<K,V>[])new Node[newCap];
-        table = newTab;
-        // 2 调整数组后，调整链表和树指向
-        if (oldTab != null) {
-            for (int j = 0; j < oldCap; ++j) {
-                Node<K,V> e;
-                if ((e = oldTab[j]) != null) {
-                    oldTab[j] = null;
-                    // 数组
-                    if (e.next == null)
-                        newTab[e.hash & (newCap - 1)] = e;
-                    // 红黑树
-                    else if (e instanceof TreeNode)
-                        ((TreeNode<K,V>)e).split(this, newTab, j, oldCap);
-                    // 链表
-                    else {
-                        Node<K,V> loHead = null, loTail = null;
-                        Node<K,V> hiHead = null, hiTail = null;
-                        Node<K,V> next;
-                        do {
-                            next = e.next;
-                            // 如果是0,扩容后还是原来位置
-                            // 如果不是0,扩容后为原位置 + oldCap
-                            if ((e.hash & oldCap) == 0) {
-                                if (loTail == null)
-                                    loHead = e;
-                                else
-                                    loTail.next = e;
-                                loTail = e;
-                            }
-                            else {
-                                if (hiTail == null)
-                                    hiHead = e;
-                                else
-                                    hiTail.next = e;
-                                hiTail = e;
-                            }
-                        } while ((e = next) != null);
-                        if (loTail != null) {
-                            loTail.next = null;
-                            newTab[j] = loHead;
-                        }
-                        if (hiTail != null) {
-                            hiTail.next = null;
-                            newTab[j + oldCap] = hiHead;
-                        }
-                    }
-                }
-            }
-        }
-        return newTab;
-    }
-
-
-    /**
-     * 树化
-     * @param tab
-     * @param hash
-     */
-    final void treeifyBin(Node<K,V>[] tab, int hash) {
-        int n, index; Node<K,V> e;
-        // TODO: 2020/4/25  如果总个数小于64不会树化，继续扩容
-        if (tab == null || (n = tab.length) < MIN_TREEIFY_CAPACITY)
-            resize();
-        // 1.链表的头
-        else if ((e = tab[index = (n - 1) & hash]) != null) {
-            TreeNode<K,V> hd = null, tl = null;
-            do {
-                // 创建红黑树根节点
-                TreeNode<K,V> p = replacementTreeNode(e, null);
-                if (tl == null)
-                    hd = p;
-                else {
-                    p.prev = tl;
-                    tl.next = p;
-                }
-                tl = p;
-            } while ((e = e.next) != null);
-            if ((tab[index] = hd) != null);
-                // 转换红黑树(真正的地方)
-                hd.treeify(tab);
-        }
-    }
-
 
     public void putAll(Map<? extends K, ? extends V> m) {
         putMapEntries(m, true);
