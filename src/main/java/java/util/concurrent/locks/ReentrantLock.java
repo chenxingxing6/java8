@@ -114,6 +114,8 @@ public class ReentrantLock implements Lock, java.io.Serializable {
             acquire(1);
         }
 
+
+        // 以独占模式获取锁，如果设置成功返回，否则加入等待队列，直到被唤醒
         protected final boolean tryAcquire(int acquires) {
             final Thread current = Thread.currentThread();
             int c = getState();

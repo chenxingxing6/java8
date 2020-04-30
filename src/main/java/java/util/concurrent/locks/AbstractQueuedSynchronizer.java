@@ -23,7 +23,7 @@ public abstract class AbstractQueuedSynchronizer extends AbstractOwnableSynchron
 
     // TODO: 2020/4/30 获取锁
     public final void acquire(int arg) {
-        // 线程竞争锁失败，加入同步队列中自旋或者挂起
+        // 线程竞争锁失败，加入同步队列中挂起(阻塞)
         if (!tryAcquire(arg) && acquireQueued(addWaiter(Node.EXCLUSIVE), arg)){
             selfInterrupt();
         }
@@ -67,22 +67,27 @@ public abstract class AbstractQueuedSynchronizer extends AbstractOwnableSynchron
     }
 
 
-    // TODO: 2020/4/30 获取队列中节点
+    // TODO: 2020/4/30 入队完成后，是否被挂起
     final boolean acquireQueued(final Node node, int arg) {
         boolean failed = true;
         try {
+            // 是否被挂起
             boolean interrupted = false;
             for (;;) {
+                // 获取前个节点
                 final Node p = node.predecessor();
+                //  只有自己到头结点且获取锁成功，就开始执行（唯一出口）
                 if (p == head && tryAcquire(arg)) {
                     setHead(node);
                     p.next = null; // help GC
                     failed = false;
                     return interrupted;
                 }
-                if (shouldParkAfterFailedAcquire(p, node) &&
-                        parkAndCheckInterrupt())
+
+                // 判断是否应该挂起该节点，调用parkAndCheckInterrupt阻塞线程
+                if (shouldParkAfterFailedAcquire(p, node) && parkAndCheckInterrupt()){
                     interrupted = true;
+                }
             }
         } finally {
             if (failed)
@@ -129,6 +134,17 @@ public abstract class AbstractQueuedSynchronizer extends AbstractOwnableSynchron
         Node h = head;
         Node s;
         return h != t && ((s = h.next) == null || s.thread != Thread.currentThread());
+    }
+
+    // TODO: 2020/4/30 释放同步状态，唤醒线程节点 
+    public final boolean release(int arg) {
+        if (tryRelease(arg)) {
+            Node h = head;
+            if (h != null && h.waitStatus != 0)
+                unparkSuccessor(h);
+            return true;
+        }
+        return false;
     }
 
 
@@ -461,36 +477,23 @@ public abstract class AbstractQueuedSynchronizer extends AbstractOwnableSynchron
         node.thread = null;
         node.prev = null;
     }
-    
 
-    /**
-     * Wakes up node's successor, if one exists.
-     *
-     * @param node the node
-     */
+
+    // TODO: 2020/4/30 唤醒节点
     private void unparkSuccessor(Node node) {
-        /*
-         * If status is negative (i.e., possibly needing signal) try
-         * to clear in anticipation of signalling.  It is OK if this
-         * fails or if status is changed by waiting thread.
-         */
         int ws = node.waitStatus;
-        if (ws < 0)
+        if (ws < 0){
             compareAndSetWaitStatus(node, ws, 0);
-
-        /*
-         * Thread to unpark is held in successor, which is normally
-         * just the next node.  But if cancelled or apparently null,
-         * traverse backwards from tail to find the actual
-         * non-cancelled successor.
-         */
+        }
         Node s = node.next;
+        // 后继节点为空或者（超时或中断）-> 从tail节点来找到可用节点
         if (s == null || s.waitStatus > 0) {
             s = null;
             for (Node t = tail; t != null && t != node; t = t.prev)
                 if (t.waitStatus <= 0)
                     s = t;
         }
+        // 唤醒后续节点
         if (s != null)
             LockSupport.unpark(s.thread);
     }
@@ -990,25 +993,7 @@ public abstract class AbstractQueuedSynchronizer extends AbstractOwnableSynchron
             doAcquireNanos(arg, nanosTimeout);
     }
 
-    /**
-     * Releases in exclusive mode.  Implemented by unblocking one or
-     * more threads if {@link #tryRelease} returns true.
-     * This method can be used to implement method {@link Lock#unlock}.
-     *
-     * @param arg the release argument.  This value is conveyed to
-     *        {@link #tryRelease} but is otherwise uninterpreted and
-     *        can represent anything you like.
-     * @return the value returned from {@link #tryRelease}
-     */
-    public final boolean release(int arg) {
-        if (tryRelease(arg)) {
-            Node h = head;
-            if (h != null && h.waitStatus != 0)
-                unparkSuccessor(h);
-            return true;
-        }
-        return false;
-    }
+
 
     /**
      * Acquires in shared mode, ignoring interrupts.  Implemented by
