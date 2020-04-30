@@ -149,7 +149,7 @@ public abstract class AbstractQueuedSynchronizer extends AbstractOwnableSynchron
 
 
 
-    // TODO: 2020/4/30 条件队列
+    // TODO: 2020/4/30 条件队列，实现condition接口
     public class ConditionObject implements Condition, java.io.Serializable {
         private static final long serialVersionUID = 1173984872572414699L;
         // 条件队列头节点
