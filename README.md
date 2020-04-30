@@ -2,5 +2,6 @@
 1.[HashMap](https://github.com/chenxingxing6/java8/blob/master/src/main/java/java/util/HashMap.java)   
 2.[ConcurrentHashMap](https://github.com/chenxingxing6/java8/blob/master/src/main/java/java/util/concurrent/ConcurrentHashMap.java)    
 3.[AbstractQueuedSynchronizer](https://github.com/chenxingxing6/java8/blob/master/src/main/java/java/util/concurrent/locks/AbstractQueuedSynchronizer.java)    
-4.[ReentrantLock](https://github.com/chenxingxing6/java8/blob/master/src/main/java/java/util/concurrent/locks/ReentrantLock.java)
+4.[ReentrantLock](https://github.com/chenxingxing6/java8/blob/master/src/main/java/java/util/concurrent/locks/ReentrantLock.java)    
+5.[ArrayBlockingQueue](https://github.com/chenxingxing6/java8/blob/master/src/main/java/java/util/concurrent/locks/ReentrantLock.java)
 
