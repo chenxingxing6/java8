@@ -9,10 +9,15 @@ import java.lang.ref.WeakReference;
 import java.util.Spliterators;
 import java.util.Spliterator;
 
+/**
+ * 锁：ReentrantLock
+ * 阻塞队列（数组+有界）
+ *
+ * 使用场景：生产者消费者（1生产者 -> n消费者）
+ */
 public class ArrayBlockingQueue<E> extends AbstractQueue<E>  implements BlockingQueue<E>, java.io.Serializable {
     private static final long serialVersionUID = -817911632652898426L;
 
-    /** The queued items */
     final Object[] items;
     int takeIndex;
     int putIndex;
@@ -20,50 +25,128 @@ public class ArrayBlockingQueue<E> extends AbstractQueue<E>  implements Blocking
 
     // 并发控制
     final ReentrantLock lock;
+    // 队列不为空条件
     private final Condition notEmpty;
+    // 队列未满条件
     private final Condition notFull;
-
-    /**
-     * Shared state for currently active iterators, or null if there
-     * are known not to be any.  Allows queue operations to update
-     * iterator state.
-     */
     transient Itrs itrs = null;
 
-
-    final int dec(int i) {
-        return ((i == 0) ? items.length : i) - 1;
+    // 添加元素
+    public void put(E e) throws InterruptedException {
+        checkNotNull(e);
+        final ReentrantLock lock = this.lock;
+        // 在阻塞时可抛异常跳出
+        lock.lockInterruptibly();
+        try {
+            // 用while原因：while一直等待条件满足，if只是判断一下
+            // 比如signalAll唤醒所有线程，没抢到的线程继续判断（count==items.length）,if就没办法判断，会直接往下执行
+            while (count == items.length){
+                // 阻塞了（队列未满）
+                notFull.await();
+            }
+            enqueue(e);
+        } finally {
+            lock.unlock();
+        }
     }
-    final E itemAt(int i) {
-        return (E) items[i];
-    }
-    private static void checkNotNull(Object v) {
-        if (v == null)
-            throw new NullPointerException();
+
+    // 获取元素
+    public E take() throws InterruptedException {
+        final ReentrantLock lock = this.lock;
+        lock.lockInterruptibly();
+        try {
+            while (count == 0){
+                notEmpty.await();
+            }
+            return dequeue();
+        } finally {
+            lock.unlock();
+        }
     }
 
 
+    // 入队
     private void enqueue(E x) {
         final Object[] items = this.items;
         items[putIndex] = x;
-        if (++putIndex == items.length)
+        // 循环数组
+        if (++putIndex == items.length){
             putIndex = 0;
+        }
         count++;
+        // 队列不为空，唤醒
         notEmpty.signal();
     }
 
-
+    // 出队
     private E dequeue() {
         final Object[] items = this.items;
         E x = (E) items[takeIndex];
         items[takeIndex] = null;
-        if (++takeIndex == items.length)
+        if (++takeIndex == items.length){
             takeIndex = 0;
+        }
         count--;
         if (itrs != null)
             itrs.elementDequeued();
+        // 队列未满，唤醒
         notFull.signal();
         return x;
+    }
+
+
+    public int size() {
+        final ReentrantLock lock = this.lock;
+        lock.lock();
+        try {
+            return count;
+        } finally {
+            lock.unlock();
+        }
+    }
+
+
+
+
+
+
+    public boolean add(E e) {
+        return super.add(e);
+    }
+
+    public boolean offer(E e) {
+        checkNotNull(e);
+        final ReentrantLock lock = this.lock;
+        lock.lock();
+        try {
+            if (count == items.length)
+                return false;
+            else {
+                enqueue(e);
+                return true;
+            }
+        } finally {
+            lock.unlock();
+        }
+    }
+
+
+    public boolean offer(E e, long timeout, TimeUnit unit) throws InterruptedException {
+        checkNotNull(e);
+        long nanos = unit.toNanos(timeout);
+        final ReentrantLock lock = this.lock;
+        lock.lockInterruptibly();
+        try {
+            while (count == items.length) {
+                if (nanos <= 0)
+                    return false;
+                nanos = notFull.awaitNanos(nanos);
+            }
+            enqueue(e);
+            return true;
+        } finally {
+            lock.unlock();
+        }
     }
 
 
@@ -99,6 +182,7 @@ public class ArrayBlockingQueue<E> extends AbstractQueue<E>  implements Blocking
     }
 
 
+    // 构造函数
     public ArrayBlockingQueue(int capacity) {
         this(capacity, false);
     }
@@ -111,10 +195,8 @@ public class ArrayBlockingQueue<E> extends AbstractQueue<E>  implements Blocking
         notFull =  lock.newCondition();
     }
 
-    public ArrayBlockingQueue(int capacity, boolean fair,
-                              Collection<? extends E> c) {
+    public ArrayBlockingQueue(int capacity, boolean fair, Collection<? extends E> c) {
         this(capacity, fair);
-
         final ReentrantLock lock = this.lock;
         lock.lock(); // Lock only for visibility, not mutual exclusion
         try {
@@ -134,75 +216,13 @@ public class ArrayBlockingQueue<E> extends AbstractQueue<E>  implements Blocking
         }
     }
 
-    public boolean add(E e) {
-        return super.add(e);
-    }
 
-    public boolean offer(E e) {
-        checkNotNull(e);
-        final ReentrantLock lock = this.lock;
-        lock.lock();
-        try {
-            if (count == items.length)
-                return false;
-            else {
-                enqueue(e);
-                return true;
-            }
-        } finally {
-            lock.unlock();
-        }
-    }
-
-    public void put(E e) throws InterruptedException {
-        checkNotNull(e);
-        final ReentrantLock lock = this.lock;
-        lock.lockInterruptibly();
-        try {
-            while (count == items.length)
-                notFull.await();
-            enqueue(e);
-        } finally {
-            lock.unlock();
-        }
-    }
-
-
-    public boolean offer(E e, long timeout, TimeUnit unit) throws InterruptedException {
-        checkNotNull(e);
-        long nanos = unit.toNanos(timeout);
-        final ReentrantLock lock = this.lock;
-        lock.lockInterruptibly();
-        try {
-            while (count == items.length) {
-                if (nanos <= 0)
-                    return false;
-                nanos = notFull.awaitNanos(nanos);
-            }
-            enqueue(e);
-            return true;
-        } finally {
-            lock.unlock();
-        }
-    }
 
     public E poll() {
         final ReentrantLock lock = this.lock;
         lock.lock();
         try {
             return (count == 0) ? null : dequeue();
-        } finally {
-            lock.unlock();
-        }
-    }
-
-    public E take() throws InterruptedException {
-        final ReentrantLock lock = this.lock;
-        lock.lockInterruptibly();
-        try {
-            while (count == 0)
-                notEmpty.await();
-            return dequeue();
         } finally {
             lock.unlock();
         }
@@ -229,17 +249,6 @@ public class ArrayBlockingQueue<E> extends AbstractQueue<E>  implements Blocking
         lock.lock();
         try {
             return itemAt(takeIndex); // null when queue is empty
-        } finally {
-            lock.unlock();
-        }
-    }
-
-
-    public int size() {
-        final ReentrantLock lock = this.lock;
-        lock.lock();
-        try {
-            return count;
         } finally {
             lock.unlock();
         }
@@ -302,6 +311,17 @@ public class ArrayBlockingQueue<E> extends AbstractQueue<E>  implements Blocking
         } finally {
             lock.unlock();
         }
+    }
+
+    final int dec(int i) {
+        return ((i == 0) ? items.length : i) - 1;
+    }
+    final E itemAt(int i) {
+        return (E) items[i];
+    }
+    private static void checkNotNull(Object v) {
+        if (v == null)
+            throw new NullPointerException();
     }
 
 
