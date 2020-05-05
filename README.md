@@ -11,4 +11,7 @@
 7.[LinkedBlockingQueue](https://github.com/chenxingxing6/java8/blob/master/src/main/java/java/util/concurrent/locks/ReentrantLock.java)
 ---
 8.[ThreadPoolExecutor](https://github.com/chenxingxing6/java8/blob/master/src/main/java/java/util/concurrent/locks/ReentrantLock.java)
+8.[CountDownLatch](https://github.com/chenxingxing6/java8/blob/master/src/main/java/java/util/concurrent/locks/ReentrantLock.java)
+8.[CyclicBarrier](https://github.com/chenxingxing6/java8/blob/master/src/main/java/java/util/concurrent/locks/ReentrantLock.java)
+8.[Semaphore](https://github.com/chenxingxing6/java8/blob/master/src/main/java/java/util/concurrent/locks/ReentrantLock.java)
 
