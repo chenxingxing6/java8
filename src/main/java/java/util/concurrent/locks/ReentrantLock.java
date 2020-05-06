@@ -10,6 +10,12 @@ import java.util.Collection;
 public class ReentrantLock implements Lock, java.io.Serializable {
     private static final long serialVersionUID = 7373984872572414699L;
 
+    // 条件队列，供调用者添加不同条件队列，实现更灵活多样化的等待机制
+    public Condition newCondition() {
+        return sync.newCondition();
+    }
+
+
     // 默认是非公平锁
     public ReentrantLock() {
         sync = new NonfairSync();
@@ -158,10 +164,6 @@ public class ReentrantLock implements Lock, java.io.Serializable {
     }
     public void unlock() {
         sync.release(1);
-    }
-
-    public Condition newCondition() {
-        return sync.newCondition();
     }
 
     public int getHoldCount() {
