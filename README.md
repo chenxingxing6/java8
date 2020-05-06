@@ -16,12 +16,12 @@
 ----
 
 ##### 阻塞队列
-1.[ConcurrentLinkedQueue](https://github.com/chenxingxing6/java8/blob/master/src/main/java/java/util/concurrent/locks/ReentrantLock.java)
-2.[ArrayBlockingQueue](https://github.com/chenxingxing6/java8/blob/master/src/main/java/java/util/concurrent/locks/ReentrantLock.java)
-3.[LinkedBlockingQueue](https://github.com/chenxingxing6/java8/blob/master/src/main/java/java/util/concurrent/locks/ReentrantLock.java)
+1.[ConcurrentLinkedQueue](https://github.com/chenxingxing6/java8/blob/master/src/main/java/java/util/concurrent/ConcurrentLinkedQueue.java)   
+2.[ArrayBlockingQueue](https://github.com/chenxingxing6/java8/blob/master/src/main/java/java/util/concurrent/ArrayBlockingQueue.java)    
+3.[LinkedBlockingQueue](https://github.com/chenxingxing6/java8/blob/master/src/main/java/java/util/concurrent/LinkedBlockingQueue.java)    
 
 
 ---
 ##### 线程池
-1.[ThreadPoolExecutor](https://github.com/chenxingxing6/java8/blob/master/src/main/java/java/util/concurrent/locks/ReentrantLock.java)
+1.[ThreadPoolExecutor](https://github.com/chenxingxing6/java8/blob/master/src/main/java/java/util/concurrent/ThreadPoolExecutor.java)
 

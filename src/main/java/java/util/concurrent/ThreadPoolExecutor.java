@@ -11,7 +11,7 @@ import java.util.*;
 
 /**
  * 1.什么是线程池
- * 2.参数
+ * 2.参数(corePoolSize,maximumPoolSize,KeepAliveTime,handler)
  * 3.Worker
  * 4.execute
  */
