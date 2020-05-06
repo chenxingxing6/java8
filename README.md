@@ -22,7 +22,7 @@
 
 ----
 ##### 原子操作类
-1.[AtomicInteger](https://github.com/chenxingxing6/java8/blob/master/src/main/java/java/util/atomic/AtomicInteger.java)  
+1.[AtomicInteger](https://github.com/chenxingxing6/java8/blob/master/src/main/java/java/util/concurrent/atomic/AtomicInteger.java)  
 ....    
 
 
