@@ -20,6 +20,11 @@
 2.[ArrayBlockingQueue](https://github.com/chenxingxing6/java8/blob/master/src/main/java/java/util/concurrent/ArrayBlockingQueue.java)    
 3.[LinkedBlockingQueue](https://github.com/chenxingxing6/java8/blob/master/src/main/java/java/util/concurrent/LinkedBlockingQueue.java)    
 
+----
+##### 原子操作类
+1.[AtomicInteger](https://github.com/chenxingxing6/java8/blob/master/src/main/java/java/util/atomic/AtomicInteger.java)  
+....    
+
 
 ---
 ##### 线程池
