@@ -11,7 +11,7 @@
 2.[ReentrantLock](https://github.com/chenxingxing6/java8/blob/master/src/main/java/java/util/concurrent/locks/ReentrantLock.java)    
 3.[CountDownLatch](https://github.com/chenxingxing6/java8/blob/master/src/main/java/java/util/concurrent/CountDownLatch.java)    
 4.[CyclicBarrier](https://github.com/chenxingxing6/java8/blob/master/src/main/java/java/util/concurrent/CyclicBarrier.java)    
-5.[Semaphore](https://github.com/chenxingxing6/java8/blob/master/src/main/java/java/util/concurrent/locks/ReentrantLock.java)
+5.[Semaphore](https://github.com/chenxingxing6/java8/blob/master/src/main/java/java/util/concurrent/Semaphore.java)
 
 ----
 
