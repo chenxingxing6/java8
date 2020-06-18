@@ -1,28 +1,3 @@
-/*
- * Copyright (c) 1994, 2013, Oracle and/or its affiliates. All rights reserved.
- * ORACLE PROPRIETARY/CONFIDENTIAL. Use is subject to license terms.
- *
- *
- *
- *
- *
- *
- *
- *
- *
- *
- *
- *
- *
- *
- *
- *
- *
- *
- *
- *
- */
-
 package java.util;
 
 import java.io.*;
@@ -32,151 +7,56 @@ import java.util.function.Function;
 import java.util.function.BiFunction;
 
 /**
- * This class implements a hash table, which maps keys to values. Any
- * non-<code>null</code> object can be used as a key or as a value. <p>
- *
- * To successfully store and retrieve objects from a hashtable, the
- * objects used as keys must implement the <code>hashCode</code>
- * method and the <code>equals</code> method. <p>
- *
- * An instance of <code>Hashtable</code> has two parameters that affect its
- * performance: <i>initial capacity</i> and <i>load factor</i>.  The
- * <i>capacity</i> is the number of <i>buckets</i> in the hash table, and the
- * <i>initial capacity</i> is simply the capacity at the time the hash table
- * is created.  Note that the hash table is <i>open</i>: in the case of a "hash
- * collision", a single bucket stores multiple entries, which must be searched
- * sequentially.  The <i>load factor</i> is a measure of how full the hash
- * table is allowed to get before its capacity is automatically increased.
- * The initial capacity and load factor parameters are merely hints to
- * the implementation.  The exact details as to when and whether the rehash
- * method is invoked are implementation-dependent.<p>
- *
- * Generally, the default load factor (.75) offers a good tradeoff between
- * time and space costs.  Higher values decrease the space overhead but
- * increase the time cost to look up an entry (which is reflected in most
- * <tt>Hashtable</tt> operations, including <tt>get</tt> and <tt>put</tt>).<p>
- *
- * The initial capacity controls a tradeoff between wasted space and the
- * need for <code>rehash</code> operations, which are time-consuming.
- * No <code>rehash</code> operations will <i>ever</i> occur if the initial
- * capacity is greater than the maximum number of entries the
- * <tt>Hashtable</tt> will contain divided by its load factor.  However,
- * setting the initial capacity too high can waste space.<p>
- *
- * If many entries are to be made into a <code>Hashtable</code>,
- * creating it with a sufficiently large capacity may allow the
- * entries to be inserted more efficiently than letting it perform
- * automatic rehashing as needed to grow the table. <p>
- *
- * This example creates a hashtable of numbers. It uses the names of
- * the numbers as keys:
- * <pre>   {@code
- *   Hashtable<String, Integer> numbers
- *     = new Hashtable<String, Integer>();
- *   numbers.put("one", 1);
- *   numbers.put("two", 2);
- *   numbers.put("three", 3);}</pre>
- *
- * <p>To retrieve a number, use the following code:
- * <pre>   {@code
- *   Integer n = numbers.get("two");
- *   if (n != null) {
- *     System.out.println("two = " + n);
- *   }}</pre>
- *
- * <p>The iterators returned by the <tt>iterator</tt> method of the collections
- * returned by all of this class's "collection view methods" are
- * <em>fail-fast</em>: if the Hashtable is structurally modified at any time
- * after the iterator is created, in any way except through the iterator's own
- * <tt>remove</tt> method, the iterator will throw a {@link
- * ConcurrentModificationException}.  Thus, in the face of concurrent
- * modification, the iterator fails quickly and cleanly, rather than risking
- * arbitrary, non-deterministic behavior at an undetermined time in the future.
- * The Enumerations returned by Hashtable's keys and elements methods are
- * <em>not</em> fail-fast.
- *
- * <p>Note that the fail-fast behavior of an iterator cannot be guaranteed
- * as it is, generally speaking, impossible to make any hard guarantees in the
- * presence of unsynchronized concurrent modification.  Fail-fast iterators
- * throw <tt>ConcurrentModificationException</tt> on a best-effort basis.
- * Therefore, it would be wrong to write a program that depended on this
- * exception for its correctness: <i>the fail-fast behavior of iterators
- * should be used only to detect bugs.</i>
- *
- * <p>As of the Java 2 platform v1.2, this class was retrofitted to
- * implement the {@link Map} interface, making it a member of the
- * <a href="{@docRoot}/../technotes/guides/collections/index.html">
- *
- * Java Collections Framework</a>.  Unlike the new collection
- * implementations, {@code Hashtable} is synchronized.  If a
- * thread-safe implementation is not needed, it is recommended to use
- * {@link HashMap} in place of {@code Hashtable}.  If a thread-safe
- * highly-concurrent implementation is desired, then it is recommended
- * to use {@link java.util.concurrent.ConcurrentHashMap} in place of
- * {@code Hashtable}.
- *
- * @author  Arthur van Hoff
- * @author  Josh Bloch
- * @author  Neal Gafter
- * @see     Object#equals(java.lang.Object)
- * @see     Object#hashCode()
- * @see     Hashtable#rehash()
- * @see     Collection
- * @see     Map
- * @see     HashMap
- * @see     TreeMap
- * @since JDK1.0
+ * hashTable 使用synchronized
+ * @param <K>
+ * @param <V>
  */
-public class Hashtable<K,V>
-    extends Dictionary<K,V>
-    implements Map<K,V>, Cloneable, java.io.Serializable {
-
-    /**
-     * The hash table data.
-     */
+public class Hashtable<K,V> extends Dictionary<K,V> implements Map<K,V>, Cloneable, java.io.Serializable {
     private transient Entry<?,?>[] table;
-
-    /**
-     * The total number of entries in the hash table.
-     */
     private transient int count;
-
-    /**
-     * The table is rehashed when its size exceeds this threshold.  (The
-     * value of this field is (int)(capacity * loadFactor).)
-     *
-     * @serial
-     */
     private int threshold;
-
-    /**
-     * The load factor for the hashtable.
-     *
-     * @serial
-     */
     private float loadFactor;
-
-    /**
-     * The number of times this Hashtable has been structurally modified
-     * Structural modifications are those that change the number of entries in
-     * the Hashtable or otherwise modify its internal structure (e.g.,
-     * rehash).  This field is used to make iterators on Collection-views of
-     * the Hashtable fail-fast.  (See ConcurrentModificationException).
-     */
     private transient int modCount = 0;
 
     /** use serialVersionUID from JDK 1.0.2 for interoperability */
     private static final long serialVersionUID = 1421746759512286392L;
 
-    /**
-     * Constructs a new, empty hashtable with the specified initial
-     * capacity and the specified load factor.
-     *
-     * @param      initialCapacity   the initial capacity of the hashtable.
-     * @param      loadFactor        the load factor of the hashtable.
-     * @exception  IllegalArgumentException  if the initial capacity is less
-     *             than zero, or if the load factor is nonpositive.
-     */
+
+    public synchronized V get(Object key) {
+        Entry<?,?> tab[] = table;
+        int hash = key.hashCode();
+        int index = (hash & 0x7FFFFFFF) % tab.length;
+        for (Entry<?,?> e = tab[index] ; e != null ; e = e.next) {
+            if ((e.hash == hash) && e.key.equals(key)) {
+                return (V)e.value;
+            }
+        }
+        return null;
+    }
+
+
+    public synchronized V put(K key, V value) {
+        if (value == null) {
+            throw new NullPointerException();
+        }
+
+        Entry<?,?> tab[] = table;
+        int hash = key.hashCode();
+        int index = (hash & 0x7FFFFFFF) % tab.length;
+        @SuppressWarnings("unchecked")
+        Entry<K,V> entry = (Entry<K,V>)tab[index];
+        for(; entry != null ; entry = entry.next) {
+            if ((entry.hash == hash) && entry.key.equals(key)) {
+                V old = entry.value;
+                entry.value = value;
+                return old;
+            }
+        }
+        addEntry(hash, key, value, index);
+        return null;
+    }
+
+
     public Hashtable(int initialCapacity, float loadFactor) {
         if (initialCapacity < 0)
             throw new IllegalArgumentException("Illegal Capacity: "+
@@ -191,55 +71,24 @@ public class Hashtable<K,V>
         threshold = (int)Math.min(initialCapacity * loadFactor, MAX_ARRAY_SIZE + 1);
     }
 
-    /**
-     * Constructs a new, empty hashtable with the specified initial capacity
-     * and default load factor (0.75).
-     *
-     * @param     initialCapacity   the initial capacity of the hashtable.
-     * @exception IllegalArgumentException if the initial capacity is less
-     *              than zero.
-     */
+
     public Hashtable(int initialCapacity) {
         this(initialCapacity, 0.75f);
     }
 
-    /**
-     * Constructs a new, empty hashtable with a default initial capacity (11)
-     * and load factor (0.75).
-     */
     public Hashtable() {
         this(11, 0.75f);
     }
 
-    /**
-     * Constructs a new hashtable with the same mappings as the given
-     * Map.  The hashtable is created with an initial capacity sufficient to
-     * hold the mappings in the given Map and a default load factor (0.75).
-     *
-     * @param t the map whose mappings are to be placed in this map.
-     * @throws NullPointerException if the specified map is null.
-     * @since   1.2
-     */
     public Hashtable(Map<? extends K, ? extends V> t) {
         this(Math.max(2*t.size(), 11), 0.75f);
         putAll(t);
     }
 
-    /**
-     * Returns the number of keys in this hashtable.
-     *
-     * @return  the number of keys in this hashtable.
-     */
     public synchronized int size() {
         return count;
     }
 
-    /**
-     * Tests if this hashtable maps no keys to values.
-     *
-     * @return  <code>true</code> if this hashtable maps no keys to values;
-     *          <code>false</code> otherwise.
-     */
     public synchronized boolean isEmpty() {
         return count == 0;
     }
@@ -342,33 +191,6 @@ public class Hashtable<K,V>
         return false;
     }
 
-    /**
-     * Returns the value to which the specified key is mapped,
-     * or {@code null} if this map contains no mapping for the key.
-     *
-     * <p>More formally, if this map contains a mapping from a key
-     * {@code k} to a value {@code v} such that {@code (key.equals(k))},
-     * then this method returns {@code v}; otherwise it returns
-     * {@code null}.  (There can be at most one such mapping.)
-     *
-     * @param key the key whose associated value is to be returned
-     * @return the value to which the specified key is mapped, or
-     *         {@code null} if this map contains no mapping for the key
-     * @throws NullPointerException if the specified key is null
-     * @see     #put(Object, Object)
-     */
-    @SuppressWarnings("unchecked")
-    public synchronized V get(Object key) {
-        Entry<?,?> tab[] = table;
-        int hash = key.hashCode();
-        int index = (hash & 0x7FFFFFFF) % tab.length;
-        for (Entry<?,?> e = tab[index] ; e != null ; e = e.next) {
-            if ((e.hash == hash) && e.key.equals(key)) {
-                return (V)e.value;
-            }
-        }
-        return null;
-    }
 
     /**
      * The maximum size of array to allocate.
@@ -436,46 +258,7 @@ public class Hashtable<K,V>
         count++;
     }
 
-    /**
-     * Maps the specified <code>key</code> to the specified
-     * <code>value</code> in this hashtable. Neither the key nor the
-     * value can be <code>null</code>. <p>
-     *
-     * The value can be retrieved by calling the <code>get</code> method
-     * with a key that is equal to the original key.
-     *
-     * @param      key     the hashtable key
-     * @param      value   the value
-     * @return     the previous value of the specified key in this hashtable,
-     *             or <code>null</code> if it did not have one
-     * @exception  NullPointerException  if the key or value is
-     *               <code>null</code>
-     * @see     Object#equals(Object)
-     * @see     #get(Object)
-     */
-    public synchronized V put(K key, V value) {
-        // Make sure the value is not null
-        if (value == null) {
-            throw new NullPointerException();
-        }
 
-        // Makes sure the key is not already in the hashtable.
-        Entry<?,?> tab[] = table;
-        int hash = key.hashCode();
-        int index = (hash & 0x7FFFFFFF) % tab.length;
-        @SuppressWarnings("unchecked")
-        Entry<K,V> entry = (Entry<K,V>)tab[index];
-        for(; entry != null ; entry = entry.next) {
-            if ((entry.hash == hash) && entry.key.equals(key)) {
-                V old = entry.value;
-                entry.value = value;
-                return old;
-            }
-        }
-
-        addEntry(hash, key, value, index);
-        return null;
-    }
 
     /**
      * Removes the key (and its corresponding value) from this

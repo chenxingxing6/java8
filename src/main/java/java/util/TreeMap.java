@@ -1,28 +1,3 @@
-/*
- * Copyright (c) 1997, 2014, Oracle and/or its affiliates. All rights reserved.
- * ORACLE PROPRIETARY/CONFIDENTIAL. Use is subject to license terms.
- *
- *
- *
- *
- *
- *
- *
- *
- *
- *
- *
- *
- *
- *
- *
- *
- *
- *
- *
- *
- */
-
 package java.util;
 
 import java.io.Serializable;
@@ -31,169 +6,329 @@ import java.util.function.BiFunction;
 import java.util.function.Consumer;
 
 /**
- * A Red-Black tree based {@link NavigableMap} implementation.
- * The map is sorted according to the {@linkplain Comparable natural
- * ordering} of its keys, or by a {@link Comparator} provided at map
- * creation time, depending on which constructor is used.
- *
- * <p>This implementation provides guaranteed log(n) time cost for the
- * {@code containsKey}, {@code get}, {@code put} and {@code remove}
- * operations.  Algorithms are adaptations of those in Cormen, Leiserson, and
- * Rivest's <em>Introduction to Algorithms</em>.
- *
- * <p>Note that the ordering maintained by a tree map, like any sorted map, and
- * whether or not an explicit comparator is provided, must be <em>consistent
- * with {@code equals}</em> if this sorted map is to correctly implement the
- * {@code Map} interface.  (See {@code Comparable} or {@code Comparator} for a
- * precise definition of <em>consistent with equals</em>.)  This is so because
- * the {@code Map} interface is defined in terms of the {@code equals}
- * operation, but a sorted map performs all key comparisons using its {@code
- * compareTo} (or {@code compare}) method, so two keys that are deemed equal by
- * this method are, from the standpoint of the sorted map, equal.  The behavior
- * of a sorted map <em>is</em> well-defined even if its ordering is
- * inconsistent with {@code equals}; it just fails to obey the general contract
- * of the {@code Map} interface.
- *
- * <p><strong>Note that this implementation is not synchronized.</strong>
- * If multiple threads access a map concurrently, and at least one of the
- * threads modifies the map structurally, it <em>must</em> be synchronized
- * externally.  (A structural modification is any operation that adds or
- * deletes one or more mappings; merely changing the value associated
- * with an existing key is not a structural modification.)  This is
- * typically accomplished by synchronizing on some object that naturally
- * encapsulates the map.
- * If no such object exists, the map should be "wrapped" using the
- * {@link Collections#synchronizedSortedMap Collections.synchronizedSortedMap}
- * method.  This is best done at creation time, to prevent accidental
- * unsynchronized access to the map: <pre>
- *   SortedMap m = Collections.synchronizedSortedMap(new TreeMap(...));</pre>
- *
- * <p>The iterators returned by the {@code iterator} method of the collections
- * returned by all of this class's "collection view methods" are
- * <em>fail-fast</em>: if the map is structurally modified at any time after
- * the iterator is created, in any way except through the iterator's own
- * {@code remove} method, the iterator will throw a {@link
- * ConcurrentModificationException}.  Thus, in the face of concurrent
- * modification, the iterator fails quickly and cleanly, rather than risking
- * arbitrary, non-deterministic behavior at an undetermined time in the future.
- *
- * <p>Note that the fail-fast behavior of an iterator cannot be guaranteed
- * as it is, generally speaking, impossible to make any hard guarantees in the
- * presence of unsynchronized concurrent modification.  Fail-fast iterators
- * throw {@code ConcurrentModificationException} on a best-effort basis.
- * Therefore, it would be wrong to write a program that depended on this
- * exception for its correctness:   <em>the fail-fast behavior of iterators
- * should be used only to detect bugs.</em>
- *
- * <p>All {@code Map.Entry} pairs returned by methods in this class
- * and its views represent snapshots of mappings at the time they were
- * produced. They do <strong>not</strong> support the {@code Entry.setValue}
- * method. (Note however that it is possible to change mappings in the
- * associated map using {@code put}.)
- *
- * <p>This class is a member of the
- * <a href="{@docRoot}/../technotes/guides/collections/index.html">
- * Java Collections Framework</a>.
- *
- * @param <K> the type of keys maintained by this map
- * @param <V> the type of mapped values
- *
- * @author  Josh Bloch and Doug Lea
- * @see Map
- * @see HashMap
- * @see Hashtable
- * @see Comparable
- * @see Comparator
- * @see Collection
- * @since 1.2
+ * A Red-Black tree  红黑树最复杂的无非就是增删了
+ * 1.节点是红色或黑色。
+ * 2.根节点是黑色。
+ * 3.每个叶子节点都是黑色的空节点（NIL节点）。
+ * 4.每个红色节点的两个子节点都是黑色。(从每个叶子到根的所有路径上不能有两个连续的红色节点)。
+ * 5.从任一节点到其每个叶子的所有路径都包含相同数目的黑色节点
  */
-
-public class TreeMap<K,V>
-    extends AbstractMap<K,V>
-    implements NavigableMap<K,V>, Cloneable, java.io.Serializable
+public class TreeMap<K,V> extends AbstractMap<K,V> implements NavigableMap<K,V>, Cloneable, java.io.Serializable
 {
-    /**
-     * The comparator used to maintain order in this tree map, or
-     * null if it uses the natural ordering of its keys.
-     *
-     * @serial
-     */
     private final Comparator<? super K> comparator;
-
     private transient Entry<K,V> root;
-
-    /**
-     * The number of entries in the tree
-     */
     private transient int size = 0;
-
-    /**
-     * The number of structural modifications to the tree.
-     */
     private transient int modCount = 0;
 
+    final Entry<K,V> getEntry(Object key) {
+        if (comparator != null)
+            return getEntryUsingComparator(key);
+        if (key == null)
+            throw new NullPointerException();
+        @SuppressWarnings("unchecked")
+        Comparable<? super K> k = (Comparable<? super K>) key;
+        Entry<K,V> p = root;
+        while (p != null) {
+            int cmp = k.compareTo(p.key);
+            if (cmp < 0)
+                p = p.left;
+            else if (cmp > 0)
+                p = p.right;
+            else
+                return p;
+        }
+        return null;
+    }
+
+
+    // 插入值
+    public V put(K key, V value) {
+        Entry<K,V> t = root;
+        // 1.根节点为空
+        if (t == null) {
+            compare(key, key);
+            root = new Entry<>(key, value, null);
+            size = 1;
+            modCount++;
+            return null;
+        }
+        int cmp;
+        Entry<K,V> parent;
+        Comparator<? super K> cpr = comparator;
+        // 2.进行遍历，找到位置进行插入
+        if (cpr != null) {
+            do {
+                parent = t;
+                cmp = cpr.compare(key, t.key);
+                if (cmp < 0)
+                    t = t.left;
+                else if (cmp > 0)
+                    t = t.right;
+                else
+                    return t.setValue(value);
+            } while (t != null);
+        }
+        else {
+            if (key == null){
+                throw new NullPointerException();
+            }
+            Comparable<? super K> k = (Comparable<? super K>) key;
+            do {
+                parent = t;
+                cmp = k.compareTo(t.key);
+                if (cmp < 0)
+                    t = t.left;
+                else if (cmp > 0)
+                    t = t.right;
+                else
+                    return t.setValue(value);
+            } while (t != null);
+        }
+        // 3.插入值
+        Entry<K,V> e = new Entry<>(key, value, parent);
+        if (cmp < 0){
+            parent.left = e;
+        }
+        else{
+            parent.right = e;
+        }
+        // 重新维持红黑树的平衡
+        fixAfterInsertion(e);
+        size++;
+        modCount++;
+        return null;
+    }
+
+
+
+    /** From CLR */
+    private void rotateLeft(Entry<K,V> p) {
+        if (p != null) {
+            Entry<K,V> r = p.right;
+            p.right = r.left;
+            if (r.left != null)
+                r.left.parent = p;
+            r.parent = p.parent;
+            if (p.parent == null)
+                root = r;
+            else if (p.parent.left == p)
+                p.parent.left = r;
+            else
+                p.parent.right = r;
+            r.left = p;
+            p.parent = r;
+        }
+    }
+
+    /** From CLR */
+    private void rotateRight(Entry<K,V> p) {
+        if (p != null) {
+            Entry<K,V> l = p.left;
+            p.left = l.right;
+            if (l.right != null) l.right.parent = p;
+            l.parent = p.parent;
+            if (p.parent == null)
+                root = l;
+            else if (p.parent.right == p)
+                p.parent.right = l;
+            else p.parent.left = l;
+            l.right = p;
+            p.parent = l;
+        }
+    }
+
     /**
-     * Constructs a new, empty tree map, using the natural ordering of its
-     * keys.  All keys inserted into the map must implement the {@link
-     * Comparable} interface.  Furthermore, all such keys must be
-     * <em>mutually comparable</em>: {@code k1.compareTo(k2)} must not throw
-     * a {@code ClassCastException} for any keys {@code k1} and
-     * {@code k2} in the map.  If the user attempts to put a key into the
-     * map that violates this constraint (for example, the user attempts to
-     * put a string key into a map whose keys are integers), the
-     * {@code put(Object key, Object value)} call will throw a
-     * {@code ClassCastException}.
+     * 平衡红黑树
+     * 1.如果一个节点是红色的，则它的子节点必须是黑色的。
+     * 2.从一个节点到该节点的子孙节点的所有路径上包含相同数目的黑节点。
      */
+    private void fixAfterInsertion(Entry<K,V> x) {
+        x.color = RED;
+        // 2.父节点为红色
+        while (x != null && x != root && x.parent.color == RED) {
+            // 2.1父亲是祖父的左儿子
+            if (parentOf(x) == leftOf(parentOf(parentOf(x)))) {
+                Entry<K,V> y = rightOf(parentOf(parentOf(x)));
+                // 1)叔叔（右）节点是红色
+                if (colorOf(y) == RED) {
+                    // 父亲变黑
+                    setColor(parentOf(x), BLACK);
+                    // 叔叔变黑
+                    setColor(y, BLACK);
+                    // 祖父节点变红
+                    setColor(parentOf(parentOf(x)), RED);
+                    // 基准节点定位到祖父节点
+                    x = parentOf(parentOf(x));
+                }
+                // 2)叔叔（右）节点是黑色：check：该节点是父亲的右儿子，则执行左旋操作（该节点变为父亲，原父亲节点变为左儿子）；此时基准节点变为他的原父亲节点，也就是左旋后新的左儿子(最左儿子)
+                //父亲变黑，祖父变红；此时的情况是父亲黑、叔叔黑、祖父红。导致从祖父到叔叔的路径黑色节点变少1个，以祖父节点为基点来一个右旋
+                else {
+                    if (x == rightOf(parentOf(x))) {
+                        x = parentOf(x);
+                        rotateLeft(x);
+                    }
+                    setColor(parentOf(x), BLACK);
+                    setColor(parentOf(parentOf(x)), RED);
+                    rotateRight(parentOf(parentOf(x)));
+                }
+            }
+            // 2.2 父亲是祖父的右儿子
+            else {
+                Entry<K,V> y = leftOf(parentOf(parentOf(x)));
+                // ①叔叔（左）节点是红色：表示祖父节点必然是黑色。职介开始变色（父亲和叔叔变黑，祖父变红。把基准节点定位到祖父节点，重复这步操作）
+                if (colorOf(y) == RED) {
+                    setColor(parentOf(x), BLACK);
+                    setColor(y, BLACK);
+                    setColor(parentOf(parentOf(x)), RED);
+                    x = parentOf(parentOf(x));
+                }
+                // ②叔叔（左）节点是黑色：
+                else {
+                    // check: 该节点是父亲的左儿子，则执行右旋操作（该节点变为父亲，原父亲节点变为右儿子）；此时基准节点变为他的原父亲节点，也就是右旋后新的右儿子(最右儿子)
+                    //父亲变黑，祖父变红；此时的情况是父亲黑，叔叔黑，祖父红。导致从祖父到叔叔的路径黑色节点少了1个，以祖父节点为基准来一个左旋
+                    if (x == leftOf(parentOf(x))) {
+                        x = parentOf(x);
+                        rotateRight(x);
+                    }
+                    setColor(parentOf(x), BLACK);
+                    setColor(parentOf(parentOf(x)), RED);
+                    rotateLeft(parentOf(parentOf(x)));
+                }
+            }
+        }
+        // 1.父节点为黑色，直接插入
+        root.color = BLACK;
+    }
+
+
+
+    /**
+     * 删除节点：相对插入而言删除的算法稍微更复杂些
+     */
+    private void deleteEntry(Entry<K,V> p) {
+        modCount++;
+        size--;
+        if (p.left != null && p.right != null) {
+            Entry<K,V> s = successor(p);
+            p.key = s.key;
+            p.value = s.value;
+            p = s;
+        } // p has 2 children
+
+        // Start fixup at replacement node, if it exists.
+        Entry<K,V> replacement = (p.left != null ? p.left : p.right);
+
+        if (replacement != null) {
+            // Link replacement to parent
+            replacement.parent = p.parent;
+            if (p.parent == null)
+                root = replacement;
+            else if (p == p.parent.left)
+                p.parent.left  = replacement;
+            else
+                p.parent.right = replacement;
+
+            // Null out links so they are OK to use by fixAfterDeletion.
+            p.left = p.right = p.parent = null;
+
+            // Fix replacement
+            if (p.color == BLACK)
+                fixAfterDeletion(replacement);
+        } else if (p.parent == null) { // return if we are the only node.
+            root = null;
+        } else { //  No children. Use self as phantom replacement and unlink.
+            if (p.color == BLACK)
+                fixAfterDeletion(p);
+
+            if (p.parent != null) {
+                if (p == p.parent.left)
+                    p.parent.left = null;
+                else if (p == p.parent.right)
+                    p.parent.right = null;
+                p.parent = null;
+            }
+        }
+    }
+
+    /**
+     * 删除后，保持红黑树平衡
+     */
+    private void fixAfterDeletion(Entry<K,V> x) {
+        while (x != root && colorOf(x) == BLACK) {
+            if (x == leftOf(parentOf(x))) {
+                Entry<K,V> sib = rightOf(parentOf(x));
+
+                if (colorOf(sib) == RED) {
+                    setColor(sib, BLACK);
+                    setColor(parentOf(x), RED);
+                    rotateLeft(parentOf(x));
+                    sib = rightOf(parentOf(x));
+                }
+
+                if (colorOf(leftOf(sib))  == BLACK &&
+                        colorOf(rightOf(sib)) == BLACK) {
+                    setColor(sib, RED);
+                    x = parentOf(x);
+                } else {
+                    if (colorOf(rightOf(sib)) == BLACK) {
+                        setColor(leftOf(sib), BLACK);
+                        setColor(sib, RED);
+                        rotateRight(sib);
+                        sib = rightOf(parentOf(x));
+                    }
+                    setColor(sib, colorOf(parentOf(x)));
+                    setColor(parentOf(x), BLACK);
+                    setColor(rightOf(sib), BLACK);
+                    rotateLeft(parentOf(x));
+                    x = root;
+                }
+            } else { // symmetric
+                Entry<K,V> sib = leftOf(parentOf(x));
+
+                if (colorOf(sib) == RED) {
+                    setColor(sib, BLACK);
+                    setColor(parentOf(x), RED);
+                    rotateRight(parentOf(x));
+                    sib = leftOf(parentOf(x));
+                }
+
+                if (colorOf(rightOf(sib)) == BLACK &&
+                        colorOf(leftOf(sib)) == BLACK) {
+                    setColor(sib, RED);
+                    x = parentOf(x);
+                } else {
+                    if (colorOf(leftOf(sib)) == BLACK) {
+                        setColor(rightOf(sib), BLACK);
+                        setColor(sib, RED);
+                        rotateLeft(sib);
+                        sib = leftOf(parentOf(x));
+                    }
+                    setColor(sib, colorOf(parentOf(x)));
+                    setColor(parentOf(x), BLACK);
+                    setColor(leftOf(sib), BLACK);
+                    rotateRight(parentOf(x));
+                    x = root;
+                }
+            }
+        }
+
+        setColor(x, BLACK);
+    }
+
+
     public TreeMap() {
         comparator = null;
     }
 
-    /**
-     * Constructs a new, empty tree map, ordered according to the given
-     * comparator.  All keys inserted into the map must be <em>mutually
-     * comparable</em> by the given comparator: {@code comparator.compare(k1,
-     * k2)} must not throw a {@code ClassCastException} for any keys
-     * {@code k1} and {@code k2} in the map.  If the user attempts to put
-     * a key into the map that violates this constraint, the {@code put(Object
-     * key, Object value)} call will throw a
-     * {@code ClassCastException}.
-     *
-     * @param comparator the comparator that will be used to order this map.
-     *        If {@code null}, the {@linkplain Comparable natural
-     *        ordering} of the keys will be used.
-     */
     public TreeMap(Comparator<? super K> comparator) {
         this.comparator = comparator;
     }
 
-    /**
-     * Constructs a new tree map containing the same mappings as the given
-     * map, ordered according to the <em>natural ordering</em> of its keys.
-     * All keys inserted into the new map must implement the {@link
-     * Comparable} interface.  Furthermore, all such keys must be
-     * <em>mutually comparable</em>: {@code k1.compareTo(k2)} must not throw
-     * a {@code ClassCastException} for any keys {@code k1} and
-     * {@code k2} in the map.  This method runs in n*log(n) time.
-     *
-     * @param  m the map whose mappings are to be placed in this map
-     * @throws ClassCastException if the keys in m are not {@link Comparable},
-     *         or are not mutually comparable
-     * @throws NullPointerException if the specified map is null
-     */
     public TreeMap(Map<? extends K, ? extends V> m) {
         comparator = null;
         putAll(m);
     }
 
-    /**
-     * Constructs a new tree map containing the same mappings and
-     * using the same ordering as the specified sorted map.  This
-     * method runs in linear time.
-     *
-     * @param  m the sorted map whose mappings are to be placed in this map,
-     *         and whose comparator is to be used to sort this map
-     * @throws NullPointerException if the specified map is null
-     */
     public TreeMap(SortedMap<K, ? extends V> m) {
         comparator = m.comparator();
         try {
@@ -327,38 +462,7 @@ public class TreeMap<K,V>
         super.putAll(map);
     }
 
-    /**
-     * Returns this map's entry for the given key, or {@code null} if the map
-     * does not contain an entry for the key.
-     *
-     * @return this map's entry for the given key, or {@code null} if the map
-     *         does not contain an entry for the key
-     * @throws ClassCastException if the specified key cannot be compared
-     *         with the keys currently in the map
-     * @throws NullPointerException if the specified key is null
-     *         and this map uses natural ordering, or its comparator
-     *         does not permit null keys
-     */
-    final Entry<K,V> getEntry(Object key) {
-        // Offload comparator-based version for sake of performance
-        if (comparator != null)
-            return getEntryUsingComparator(key);
-        if (key == null)
-            throw new NullPointerException();
-        @SuppressWarnings("unchecked")
-            Comparable<? super K> k = (Comparable<? super K>) key;
-        Entry<K,V> p = root;
-        while (p != null) {
-            int cmp = k.compareTo(p.key);
-            if (cmp < 0)
-                p = p.left;
-            else if (cmp > 0)
-                p = p.right;
-            else
-                return p;
-        }
-        return null;
-    }
+
 
     /**
      * Version of getEntry using comparator. Split off from getEntry
@@ -511,77 +615,6 @@ public class TreeMap<K,V>
                 }
             }
         }
-        return null;
-    }
-
-    /**
-     * Associates the specified value with the specified key in this map.
-     * If the map previously contained a mapping for the key, the old
-     * value is replaced.
-     *
-     * @param key key with which the specified value is to be associated
-     * @param value value to be associated with the specified key
-     *
-     * @return the previous value associated with {@code key}, or
-     *         {@code null} if there was no mapping for {@code key}.
-     *         (A {@code null} return can also indicate that the map
-     *         previously associated {@code null} with {@code key}.)
-     * @throws ClassCastException if the specified key cannot be compared
-     *         with the keys currently in the map
-     * @throws NullPointerException if the specified key is null
-     *         and this map uses natural ordering, or its comparator
-     *         does not permit null keys
-     */
-    public V put(K key, V value) {
-        Entry<K,V> t = root;
-        if (t == null) {
-            compare(key, key); // type (and possibly null) check
-
-            root = new Entry<>(key, value, null);
-            size = 1;
-            modCount++;
-            return null;
-        }
-        int cmp;
-        Entry<K,V> parent;
-        // split comparator and comparable paths
-        Comparator<? super K> cpr = comparator;
-        if (cpr != null) {
-            do {
-                parent = t;
-                cmp = cpr.compare(key, t.key);
-                if (cmp < 0)
-                    t = t.left;
-                else if (cmp > 0)
-                    t = t.right;
-                else
-                    return t.setValue(value);
-            } while (t != null);
-        }
-        else {
-            if (key == null)
-                throw new NullPointerException();
-            @SuppressWarnings("unchecked")
-                Comparable<? super K> k = (Comparable<? super K>) key;
-            do {
-                parent = t;
-                cmp = k.compareTo(t.key);
-                if (cmp < 0)
-                    t = t.left;
-                else if (cmp > 0)
-                    t = t.right;
-                else
-                    return t.setValue(value);
-            } while (t != null);
-        }
-        Entry<K,V> e = new Entry<>(key, value, parent);
-        if (cmp < 0)
-            parent.left = e;
-        else
-            parent.right = e;
-        fixAfterInsertion(e);
-        size++;
-        modCount++;
         return null;
     }
 
@@ -2011,15 +2044,6 @@ public class TreeMap<K,V>
         TreeMap.Entry<K,V> subLower(K key)   { return absHigher(key); }
     }
 
-    /**
-     * This class exists solely for the sake of serialization
-     * compatibility with previous releases of TreeMap that did not
-     * support NavigableMap.  It translates an old-version SubMap into
-     * a new-version AscendingSubMap. This class is never otherwise
-     * used.
-     *
-     * @serial include
-     */
     private class SubMap extends AbstractMap<K,V>
         implements SortedMap<K,V>, java.io.Serializable {
         private static final long serialVersionUID = -6520786458950516097L;
@@ -2039,16 +2063,8 @@ public class TreeMap<K,V>
         public Comparator<? super K> comparator() { throw new InternalError(); }
     }
 
-
-    // Red-black mechanics
-
     private static final boolean RED   = false;
     private static final boolean BLACK = true;
-
-    /**
-     * Node in the Tree.  Doubles as a means to pass key-value pairs back to
-     * user (see Map.Entry).
-     */
 
     static final class Entry<K,V> implements Map.Entry<K,V> {
         K key;
@@ -2186,15 +2202,6 @@ public class TreeMap<K,V>
         }
     }
 
-    /**
-     * Balancing operations.
-     *
-     * Implementations of rebalancings during insertion and deletion are
-     * slightly different than the CLR version.  Rather than using dummy
-     * nilnodes, we use a set of accessors that deal properly with null.  They
-     * are used to avoid messiness surrounding nullness checks in the main
-     * algorithms.
-     */
 
     private static <K,V> boolean colorOf(Entry<K,V> p) {
         return (p == null ? BLACK : p.color);
@@ -2217,197 +2224,6 @@ public class TreeMap<K,V>
         return (p == null) ? null: p.right;
     }
 
-    /** From CLR */
-    private void rotateLeft(Entry<K,V> p) {
-        if (p != null) {
-            Entry<K,V> r = p.right;
-            p.right = r.left;
-            if (r.left != null)
-                r.left.parent = p;
-            r.parent = p.parent;
-            if (p.parent == null)
-                root = r;
-            else if (p.parent.left == p)
-                p.parent.left = r;
-            else
-                p.parent.right = r;
-            r.left = p;
-            p.parent = r;
-        }
-    }
-
-    /** From CLR */
-    private void rotateRight(Entry<K,V> p) {
-        if (p != null) {
-            Entry<K,V> l = p.left;
-            p.left = l.right;
-            if (l.right != null) l.right.parent = p;
-            l.parent = p.parent;
-            if (p.parent == null)
-                root = l;
-            else if (p.parent.right == p)
-                p.parent.right = l;
-            else p.parent.left = l;
-            l.right = p;
-            p.parent = l;
-        }
-    }
-
-    /** From CLR */
-    private void fixAfterInsertion(Entry<K,V> x) {
-        x.color = RED;
-
-        while (x != null && x != root && x.parent.color == RED) {
-            if (parentOf(x) == leftOf(parentOf(parentOf(x)))) {
-                Entry<K,V> y = rightOf(parentOf(parentOf(x)));
-                if (colorOf(y) == RED) {
-                    setColor(parentOf(x), BLACK);
-                    setColor(y, BLACK);
-                    setColor(parentOf(parentOf(x)), RED);
-                    x = parentOf(parentOf(x));
-                } else {
-                    if (x == rightOf(parentOf(x))) {
-                        x = parentOf(x);
-                        rotateLeft(x);
-                    }
-                    setColor(parentOf(x), BLACK);
-                    setColor(parentOf(parentOf(x)), RED);
-                    rotateRight(parentOf(parentOf(x)));
-                }
-            } else {
-                Entry<K,V> y = leftOf(parentOf(parentOf(x)));
-                if (colorOf(y) == RED) {
-                    setColor(parentOf(x), BLACK);
-                    setColor(y, BLACK);
-                    setColor(parentOf(parentOf(x)), RED);
-                    x = parentOf(parentOf(x));
-                } else {
-                    if (x == leftOf(parentOf(x))) {
-                        x = parentOf(x);
-                        rotateRight(x);
-                    }
-                    setColor(parentOf(x), BLACK);
-                    setColor(parentOf(parentOf(x)), RED);
-                    rotateLeft(parentOf(parentOf(x)));
-                }
-            }
-        }
-        root.color = BLACK;
-    }
-
-    /**
-     * Delete node p, and then rebalance the tree.
-     */
-    private void deleteEntry(Entry<K,V> p) {
-        modCount++;
-        size--;
-
-        // If strictly internal, copy successor's element to p and then make p
-        // point to successor.
-        if (p.left != null && p.right != null) {
-            Entry<K,V> s = successor(p);
-            p.key = s.key;
-            p.value = s.value;
-            p = s;
-        } // p has 2 children
-
-        // Start fixup at replacement node, if it exists.
-        Entry<K,V> replacement = (p.left != null ? p.left : p.right);
-
-        if (replacement != null) {
-            // Link replacement to parent
-            replacement.parent = p.parent;
-            if (p.parent == null)
-                root = replacement;
-            else if (p == p.parent.left)
-                p.parent.left  = replacement;
-            else
-                p.parent.right = replacement;
-
-            // Null out links so they are OK to use by fixAfterDeletion.
-            p.left = p.right = p.parent = null;
-
-            // Fix replacement
-            if (p.color == BLACK)
-                fixAfterDeletion(replacement);
-        } else if (p.parent == null) { // return if we are the only node.
-            root = null;
-        } else { //  No children. Use self as phantom replacement and unlink.
-            if (p.color == BLACK)
-                fixAfterDeletion(p);
-
-            if (p.parent != null) {
-                if (p == p.parent.left)
-                    p.parent.left = null;
-                else if (p == p.parent.right)
-                    p.parent.right = null;
-                p.parent = null;
-            }
-        }
-    }
-
-    /** From CLR */
-    private void fixAfterDeletion(Entry<K,V> x) {
-        while (x != root && colorOf(x) == BLACK) {
-            if (x == leftOf(parentOf(x))) {
-                Entry<K,V> sib = rightOf(parentOf(x));
-
-                if (colorOf(sib) == RED) {
-                    setColor(sib, BLACK);
-                    setColor(parentOf(x), RED);
-                    rotateLeft(parentOf(x));
-                    sib = rightOf(parentOf(x));
-                }
-
-                if (colorOf(leftOf(sib))  == BLACK &&
-                    colorOf(rightOf(sib)) == BLACK) {
-                    setColor(sib, RED);
-                    x = parentOf(x);
-                } else {
-                    if (colorOf(rightOf(sib)) == BLACK) {
-                        setColor(leftOf(sib), BLACK);
-                        setColor(sib, RED);
-                        rotateRight(sib);
-                        sib = rightOf(parentOf(x));
-                    }
-                    setColor(sib, colorOf(parentOf(x)));
-                    setColor(parentOf(x), BLACK);
-                    setColor(rightOf(sib), BLACK);
-                    rotateLeft(parentOf(x));
-                    x = root;
-                }
-            } else { // symmetric
-                Entry<K,V> sib = leftOf(parentOf(x));
-
-                if (colorOf(sib) == RED) {
-                    setColor(sib, BLACK);
-                    setColor(parentOf(x), RED);
-                    rotateRight(parentOf(x));
-                    sib = leftOf(parentOf(x));
-                }
-
-                if (colorOf(rightOf(sib)) == BLACK &&
-                    colorOf(leftOf(sib)) == BLACK) {
-                    setColor(sib, RED);
-                    x = parentOf(x);
-                } else {
-                    if (colorOf(leftOf(sib)) == BLACK) {
-                        setColor(rightOf(sib), BLACK);
-                        setColor(sib, RED);
-                        rotateLeft(sib);
-                        sib = leftOf(parentOf(x));
-                    }
-                    setColor(sib, colorOf(parentOf(x)));
-                    setColor(parentOf(x), BLACK);
-                    setColor(leftOf(sib), BLACK);
-                    rotateRight(parentOf(x));
-                    x = root;
-                }
-            }
-        }
-
-        setColor(x, BLACK);
-    }
 
     private static final long serialVersionUID = 919286545866124006L;
 

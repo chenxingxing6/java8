@@ -1,7 +1,5 @@
 package java.util;
 
-import com.sun.xml.internal.bind.v2.TODO;
-
 import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.Serializable;
@@ -12,6 +10,11 @@ import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
+/**
+ * hashMap源码
+ * @param <K>
+ * @param <V>
+ */
 public class HashMap<K,V> extends AbstractMap<K,V> implements Map<K,V>, Cloneable, Serializable {
     private static final long serialVersionUID = 362498820763181265L;
 
