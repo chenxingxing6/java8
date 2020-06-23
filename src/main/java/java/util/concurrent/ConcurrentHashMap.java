@@ -349,6 +349,8 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V> implements Concurre
 
 
     // TODO: 2020/4/29 size+1,扩容  x=1或-1
+    // 如果多个线程并发增加新元素，baseCount 更新冲突，将会启用 CounterCell，通过使用 CAS 方式将总数更新到
+    // counterCells 数组对应的位置，减少竞争。
     private final void addCount(long x, int check) {
         CounterCell[] as; long b, s;
         // 多个线程可能导致cas增加失败，然后用fullAddCount把数量值存到counterCells数组中
